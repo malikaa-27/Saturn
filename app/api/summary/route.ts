@@ -1,15 +1,16 @@
 /**
  * POST /api/summary
- * Generates a structured meeting summary using OpenAI.
+ * Generates a structured meeting summary using Claude.
  *
  * Body: { transcript: string, title?: string, duration?: string }
  * Returns: MeetingSummary object
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
+import type { ActionItem, MeetingSummary } from "@/types";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const anthropic = new Anthropic();
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,49 +20,72 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "transcript is required" }, { status: 400 });
     }
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0.2,
-      max_tokens: 800,
+    const now = new Date().toLocaleTimeString("en-US", { hour12: false });
+
+    const message = await anthropic.messages.create({
+      model: "claude-opus-4-6",
+      max_tokens: 1024,
       messages: [
         {
-          role: "system",
-          content:
-            "You are a professional meeting summarizer. Analyze the meeting transcript and produce a structured JSON summary. " +
-            'Respond with: { "summary": string, "decisions": string[], "actionItems": { "text": string, "assignee"?: string }[], "topics": string[] }. ' +
-            "Be concise and accurate. Action items should be specific and actionable.",
-        },
-        {
           role: "user",
-          content: `Meeting: ${title}\nDuration: ${duration}\n\nTranscript:\n${transcript.slice(0, 8000)}`,
+          content: `You are analyzing a meeting transcript. Produce a JSON object with this exact shape:
+
+{
+  "summary": "<2-4 sentence prose summary of what the meeting covered>",
+  "decisions": ["<decision 1>", "<decision 2>"],
+  "actionItems": [
+    { "text": "<what needs to be done>", "assignee": "<name or null>" }
+  ],
+  "topics": ["<topic 1>", "<topic 2>", "<topic 3>"]
+}
+
+Rules:
+- summary: concise narrative, past tense, max 4 sentences
+- decisions: things agreed/decided/confirmed, max 6. If none, return []
+- actionItems: concrete follow-up tasks, include owner if mentioned, max 8. If none, return []
+- topics: 3-5 key subjects discussed, 1-3 words each
+- Return ONLY valid JSON — no markdown fences, no explanation
+
+Meeting title: ${title}
+Duration: ${duration}
+
+Transcript:
+${transcript.slice(0, 14000)}`,
         },
       ],
-      response_format: { type: "json_object" },
     });
 
-    const parsed = JSON.parse(completion.choices[0].message.content ?? "{}");
+    const raw =
+      message.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text ?? "{}";
 
-    const now = new Date().toLocaleTimeString("en-US", { hour12: false });
-    const actionItems = (parsed.actionItems ?? []).map(
-      (item: { text: string; assignee?: string }, i: number) => ({
+    const json = raw
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/```\s*$/i, "")
+      .trim();
+
+    const parsed = JSON.parse(json);
+
+    const actionItems: ActionItem[] = (parsed.actionItems ?? []).map(
+      (item: { text: string; assignee?: string | null }, i: number) => ({
         id: `action-${Date.now()}-${i}`,
         text: item.text,
-        assignee: item.assignee,
+        assignee: item.assignee ?? undefined,
         detectedAt: now,
         status: "open" as const,
       })
     );
 
-    return NextResponse.json({
-      summary: {
-        title,
-        duration,
-        summary: parsed.summary ?? "",
-        decisions: parsed.decisions ?? [],
-        actionItems,
-        topics: parsed.topics ?? [],
-      },
-    });
+    const summary: MeetingSummary = {
+      title,
+      duration,
+      summary: parsed.summary ?? "No summary available.",
+      decisions: parsed.decisions ?? [],
+      actionItems,
+      topics: parsed.topics ?? [],
+    };
+
+    return NextResponse.json({ summary });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Summary generation failed";
     console.error("[/api/summary]", message);

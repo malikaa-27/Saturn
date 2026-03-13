@@ -36,23 +36,23 @@ export function MeetingSummaryModal({ isOpen, onClose }: Props) {
             transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
             className="fixed inset-0 z-50 flex items-center justify-center p-6"
           >
-            <div className="w-full max-w-2xl bg-zinc-950 border border-white/10 rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+            <div className="w-full max-w-2xl bg-zinc-950 border border-slate-200 rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
               {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
                 <div>
-                  <h2 className="text-base font-semibold text-white">{summary.title}</h2>
-                  <p className="text-xs text-white/40 mt-0.5">
+                  <h2 className="text-base font-semibold text-slate-900">{summary.title}</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
                     Duration: {summary.duration}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-white/50 hover:text-white/70 text-xs transition-all">
+                  <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-slate-600 text-xs transition-all">
                     <Download className="w-3.5 h-3.5" />
                     Export
                   </button>
                   <button
                     onClick={onClose}
-                    className="p-2 rounded-lg hover:bg-white/[0.06] text-white/40 hover:text-white/60 transition-all"
+                    className="p-2 rounded-lg hover:bg-white/[0.06] text-slate-400 hover:text-slate-500 transition-all"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -63,7 +63,7 @@ export function MeetingSummaryModal({ isOpen, onClose }: Props) {
               <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
                 {/* Summary */}
                 <Section icon={<List className="w-4 h-4 text-violet-400" />} title="Summary">
-                  <p className="text-sm text-white/70 leading-relaxed">{summary.summary}</p>
+                  <p className="text-sm text-slate-600 leading-relaxed">{summary.summary}</p>
                 </Section>
 
                 {/* Topics */}
@@ -72,7 +72,7 @@ export function MeetingSummaryModal({ isOpen, onClose }: Props) {
                     {summary.topics.map((topic, i) => (
                       <span
                         key={i}
-                        className="px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white/60"
+                        className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-xs text-slate-500"
                       >
                         {topic}
                       </span>
@@ -92,7 +92,7 @@ export function MeetingSummaryModal({ isOpen, onClose }: Props) {
                         className="flex gap-2.5"
                       >
                         <div className="w-1 h-1 rounded-full bg-emerald-400 mt-2 flex-shrink-0" />
-                        <span className="text-sm text-white/70">{decision}</span>
+                        <span className="text-sm text-slate-600">{decision}</span>
                       </motion.li>
                     ))}
                   </ul>
@@ -104,12 +104,12 @@ export function MeetingSummaryModal({ isOpen, onClose }: Props) {
                     {actionItems.map((item) => (
                       <div
                         key={item.id}
-                        className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]"
+                        className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200"
                       >
                         <div className="w-4 h-4 rounded border border-white/20 flex-shrink-0" />
-                        <span className="text-sm text-white/70 flex-1">{item.text}</span>
+                        <span className="text-sm text-slate-600 flex-1">{item.text}</span>
                         {item.assignee && (
-                          <span className="text-xs text-white/40 bg-white/[0.04] px-2 py-0.5 rounded-full">
+                          <span className="text-xs text-slate-400 bg-white px-2 py-0.5 rounded-full">
                             {item.assignee}
                           </span>
                         )}
@@ -139,7 +139,7 @@ function Section({
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         {icon}
-        <h3 className="text-sm font-semibold text-white/80">{title}</h3>
+        <h3 className="text-sm font-semibold text-slate-700">{title}</h3>
       </div>
       {children}
     </div>

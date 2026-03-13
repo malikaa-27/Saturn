@@ -1,13 +1,10 @@
 /**
- * Research agent — combines Exa search with OpenAI summarization.
+ * Research agent — combines Exa search with heuristic summarization.
  * Detects questions in transcript text and produces structured insights.
  */
 
-import OpenAI from "openai";
 import { searchExa } from "./exaSearchService";
 import type { Insight, Source } from "@/types";
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export interface ResearchResult {
   topic: string;
@@ -16,38 +13,27 @@ export interface ResearchResult {
   confidence: number;
 }
 
+const QUESTION_STARTERS =
+  /^\s*(what|when|where|who|why|how|which|is|are|was|were|do|does|did|can|could|would|should|will|whom|whose)\b/i;
+
+
 /**
  * Detect whether a sentence is a question or research trigger.
- * Returns the cleaned query string, or null if not a research trigger.
+ * Returns the full natural-language query for Exa (useAutoprompt handles semantics).
  */
 export async function detectQuestion(text: string): Promise<string | null> {
-  if (!process.env.OPENAI_API_KEY) return null;
+  const hasQuestionMark = text.trimEnd().endsWith("?");
+  if (!hasQuestionMark && !QUESTION_STARTERS.test(text)) return null;
 
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    temperature: 0,
-    max_tokens: 80,
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are a meeting assistant. Determine if the given text contains a question or topic that requires web research. " +
-          "If yes, respond with ONLY a concise search query (under 10 words). " +
-          "If no, respond with exactly: NO",
-      },
-      { role: "user", content: text },
-    ],
-  });
-
-  const answer = completion.choices[0].message.content?.trim() ?? "NO";
-  return answer === "NO" ? null : answer;
+  const query = text.replace(/[?!]+$/, "").trim();
+  return query.length > 0 ? query : null;
 }
 
 /**
- * Run the full research pipeline: search + summarize.
+ * Run the full research pipeline: fetch Exa results.
+ * Summarization is handled server-side in the API route.
  */
 export async function runResearch(query: string): Promise<ResearchResult> {
-  // 1. Search Exa
   const { results } = await searchExa(query, 5);
 
   if (results.length === 0) {
@@ -59,45 +45,23 @@ export async function runResearch(query: string): Promise<ResearchResult> {
     };
   }
 
-  // 2. Build context from search results
-  const context = results
-    .map((r, i) => `[${i + 1}] ${r.title}\n${r.text ?? r.snippet}`)
-    .join("\n\n");
-
   const sources: Source[] = results.map((r) => ({
     title: r.title,
     url: r.url,
     snippet: r.snippet,
   }));
 
-  // 3. Summarize with OpenAI
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    temperature: 0.3,
-    max_tokens: 400,
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are a meeting research assistant. Given search results, produce a concise briefing. " +
-          "Respond with JSON: { \"topic\": string, \"bullets\": string[3-5], \"confidence\": number(0-1) }. " +
-          "Bullets should be crisp, factual, and useful in a meeting context.",
-      },
-      {
-        role: "user",
-        content: `Query: ${query}\n\nSearch results:\n${context}`,
-      },
-    ],
-    response_format: { type: "json_object" },
-  });
-
-  const parsed = JSON.parse(completion.choices[0].message.content ?? "{}");
+  // Return raw snippets — the API route will summarize with Claude
+  const bullets = results
+    .slice(0, 4)
+    .map((r) => r.snippet || r.text || "")
+    .filter((s) => s.length > 15);
 
   return {
-    topic: parsed.topic ?? query,
-    bullets: Array.isArray(parsed.bullets) ? parsed.bullets : ["No summary available."],
+    topic: query,
+    bullets,
     sources,
-    confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.75,
+    confidence: Math.min(0.4 + results.length * 0.1, 0.85),
   };
 }
 

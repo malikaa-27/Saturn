@@ -4,7 +4,6 @@
  */
 import {
   MOCK_TRANSCRIPT,
-  MOCK_INSIGHTS,
   MOCK_ACTION_ITEMS,
   MOCK_TOPICS,
 } from "./mockData";
@@ -38,37 +37,10 @@ export function startDemoSimulation() {
         timeouts.push(wt);
       });
 
-      // If it's a question, start research after typing completes
-      if (segment.isQuestion) {
-        const researchDelay = words.length * 80 + 500;
-        const rt = setTimeout(() => {
-          store.incrementResearch();
-          store.updateCreditBalance(-2);
-        }, researchDelay);
-        timeouts.push(rt);
-      }
+      // Question detection and research is handled by useExaBot hook
     }, delay);
 
     timeouts.push(t);
-  });
-
-  // Add insights with delay (after research)
-  MOCK_INSIGHTS.forEach((insight, i) => {
-    // Start as "researching"
-    const startDelay = i * 7000 + 6000;
-    const st = setTimeout(() => {
-      store.addInsight({ ...insight, status: "researching" });
-    }, startDelay);
-    timeouts.push(st);
-
-    // Complete research after 3s
-    const endDelay = startDelay + 3000;
-    const et = setTimeout(() => {
-      store.updateInsight(insight.id, { status: "ready" });
-      store.decrementResearch();
-      if (i === 0) store.setActiveInsight(insight.id);
-    }, endDelay);
-    timeouts.push(et);
   });
 
   // Add action items

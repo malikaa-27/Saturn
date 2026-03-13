@@ -59,6 +59,7 @@ export interface MeetingSummary {
 }
 
 export type MeetingStatus = "idle" | "listening" | "paused" | "ended";
+export type SttStatus = "idle" | "listening" | "transcribing" | "error";
 
 export interface MeetingState {
   status: MeetingStatus;
@@ -76,4 +77,6 @@ export interface MeetingState {
   activeInsightId: string | null;
   activeResearchCount: number;
   creditBalance: number;
+  sttStatus: SttStatus;
+  sttError: string | null;
 }

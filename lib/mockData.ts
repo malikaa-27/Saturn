@@ -43,7 +43,7 @@ export const MOCK_TRANSCRIPT: TranscriptSegment[] = [
     id: "t3",
     speaker: "You",
     speakerColor: SPEAKER_COLORS.You,
-    text: "Great question. I've seen some numbers but they vary a lot. Jarvis is pulling that up now.",
+    text: "Great question. I've seen some numbers but they vary a lot. Saturn is pulling that up now.",
     timestamp: fmt(120),
     isQuestion: false,
     isHighlighted: false,

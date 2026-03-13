@@ -9,13 +9,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { transcribeAudio } from "@/services/transcriptionService";
 
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: CORS });
+}
+
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const audioFile = formData.get("audio");
 
     if (!audioFile || !(audioFile instanceof Blob)) {
-      return NextResponse.json({ error: "audio file is required" }, { status: 400 });
+      return NextResponse.json({ error: "audio file is required" }, { status: 400, headers: CORS });
     }
 
     const mimeType = audioFile.type || "audio/wav";
@@ -24,15 +34,11 @@ export async function POST(req: NextRequest) {
 
     const result = await transcribeAudio(buffer, mimeType);
 
-    return NextResponse.json(result);
+    return NextResponse.json(result, { headers: CORS });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Transcription failed";
     console.error("[/api/transcribe]", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    const isBilling = err instanceof Error && (err as Error & { billingError?: boolean }).billingError;
+    return NextResponse.json({ error: message }, { status: isBilling ? 402 : 500, headers: CORS });
   }
 }
-
-// Allow large audio uploads
-export const config = {
-  api: { bodyParser: false },
-};

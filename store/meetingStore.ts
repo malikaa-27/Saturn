@@ -2,6 +2,7 @@ import { create } from "zustand";
 import {
   MeetingState,
   MeetingStatus,
+  SttStatus,
   TranscriptSegment,
   Insight,
   ActionItem,
@@ -28,6 +29,7 @@ interface MeetingActions {
   setVoiceEnabled: (enabled: boolean) => void;
   setVoiceSpeed: (speed: number) => void;
   setIsSpeaking: (speaking: boolean) => void;
+  setSttStatus: (status: SttStatus, error?: string | null) => void;
   incrementResearch: () => void;
   decrementResearch: () => void;
   updateCreditBalance: (amount: number) => void;
@@ -50,6 +52,8 @@ const initialState: MeetingState = {
   activeInsightId: null,
   activeResearchCount: 0,
   creditBalance: 250,
+  sttStatus: "idle",
+  sttError: null,
 };
 
 export const useMeetingStore = create<MeetingState & MeetingActions>((set) => ({
@@ -66,6 +70,8 @@ export const useMeetingStore = create<MeetingState & MeetingActions>((set) => ({
       insights: [],
       actionItems: [],
       summary: null,
+      sttStatus: "idle",
+      sttError: null,
     }),
 
   pauseMeeting: () => set({ status: "paused" }),
@@ -119,6 +125,8 @@ export const useMeetingStore = create<MeetingState & MeetingActions>((set) => ({
   setVoiceSpeed: (speed) => set({ voiceSpeed: speed }),
 
   setIsSpeaking: (speaking) => set({ isSpeaking: speaking }),
+
+  setSttStatus: (status, error = null) => set({ sttStatus: status, sttError: error ?? null }),
 
   incrementResearch: () =>
     set((state) => ({ activeResearchCount: state.activeResearchCount + 1 })),
