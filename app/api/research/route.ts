@@ -12,6 +12,38 @@ import { runResearch, buildInsight } from "@/services/researchAgent";
 
 const anthropic = new Anthropic();
 
+async function classifyResearchIntent(text: string): Promise<string | null> {
+  const message = await anthropic.messages.create({
+    model: "claude-opus-4-6",
+    max_tokens: 80,
+    messages: [
+      {
+        role: "user",
+        content:
+          `You are classifying transcript utterances for web research triggering.\n` +
+          `Input sentence: "${text}"\n\n` +
+          `Rules:\n` +
+          `1) Trigger only if this is an actual information-seeking question.\n` +
+          `2) Do NOT trigger for conversational/meta prompts like: "can I ask you something", "are you there", greetings, confirmations.\n` +
+          `3) Do NOT trigger if the sentence is not a question.\n` +
+          `4) If triggering, return a concise cleaned query.\n\n` +
+          `Respond in EXACTLY one of these formats:\n` +
+          `TRIGGER|<clean query>\n` +
+          `SKIP`,
+      },
+    ],
+  });
+
+  const textOut =
+    message.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text?.trim() ??
+    "";
+
+  if (!textOut.toUpperCase().startsWith("TRIGGER|")) return null;
+
+  const query = textOut.slice("TRIGGER|".length).trim();
+  return query.length > 0 ? query : null;
+}
+
 async function summarizeWithClaude(query: string, snippets: string[]): Promise<string[]> {
   const context = snippets.join("\n\n---\n\n");
   const message = await anthropic.messages.create({
@@ -34,13 +66,21 @@ async function summarizeWithClaude(query: string, snippets: string[]): Promise<s
 
 export async function POST(req: NextRequest) {
   try {
-    const { query, segmentId } = await req.json();
+    const { query, segmentId, numResults, detectOnly } = await req.json();
 
     if (!query || typeof query !== "string") {
       return NextResponse.json({ error: "query is required" }, { status: 400 });
     }
 
-    const result = await runResearch(query.trim());
+    if (detectOnly) {
+      const classified = await classifyResearchIntent(query.trim());
+      return NextResponse.json({
+        shouldResearch: Boolean(classified),
+        query: classified,
+      });
+    }
+
+    const result = await runResearch(query.trim(), typeof numResults === "number" ? Math.min(10, Math.max(1, numResults)) : 5);
 
     // Summarize raw snippets with Claude (server-side only)
     try {

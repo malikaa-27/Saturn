@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       speakerColor: speakerColor(speaker),
       text: text.trim(),
       timestamp: new Date().toLocaleTimeString("en-US", { hour12: false }),
-      isQuestion: text.trimEnd().endsWith("?"),
+        isQuestion: false,
       isHighlighted: false,
       words: [],
     };

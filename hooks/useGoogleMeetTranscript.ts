@@ -36,7 +36,8 @@ function makeSegment(text: string, rawSpeaker?: string): TranscriptSegment {
     speakerColor: speakerColor(speaker),
     text: text.trim(),
     timestamp: new Date().toLocaleTimeString("en-US", { hour12: false }),
-    isQuestion: text.trimEnd().endsWith("?"),
+    // Only set this when research is actually triggered (LLM gate + fetch start).
+    isQuestion: false,
     isHighlighted: false,
     words: [],
   };
@@ -111,7 +112,7 @@ function startWebSpeechFallback(
 // ── Hook ───────────────────────────────────────────────────────────────────
 
 export function useGoogleMeetTranscript() {
-  const { status, addTranscriptSegment, setSttStatus } = useMeetingStore();
+  const { status, addTranscriptSegment, setSttStatus, sttLanguage } = useMeetingStore();
   const stopRef = useRef(false);
   const esRef = useRef<EventSource | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -217,6 +218,7 @@ registerProcessor('saturn-pcm-collector', PCMCollector);
           const wav = encodeWAV(merged, SAMPLE_RATE);
           const formData = new FormData();
           formData.append("audio", wav, "chunk.wav");
+          formData.append("language", useMeetingStore.getState().sttLanguage);
 
           const res = await fetch("/api/transcribe", { method: "POST", body: formData });
           if (!res.ok) {
