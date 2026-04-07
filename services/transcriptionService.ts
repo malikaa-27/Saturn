@@ -24,13 +24,14 @@ export interface TranscriptionResponse {
  */
 export async function transcribeAudio(
   audioBuffer: Buffer,
-  mimeType = "audio/webm"
+  mimeType = "audio/webm",
+  language = "en"
 ): Promise<TranscriptionResponse> {
   const apiKey = process.env.SMALLEST_API_KEY;
   if (!apiKey) throw new Error("SMALLEST_API_KEY is not set");
 
   const response = await fetch(
-    "https://api.smallest.ai/waves/v1/pulse/get_text?language=en&word_timestamps=true",
+    `https://api.smallest.ai/waves/v1/pulse/get_text?language=${encodeURIComponent(language)}&word_timestamps=true`,
     {
       method: "POST",
       headers: {

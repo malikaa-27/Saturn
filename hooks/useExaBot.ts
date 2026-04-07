@@ -15,7 +15,6 @@
 
 import { useEffect, useRef } from "react";
 import { useMeetingStore } from "@/store/meetingStore";
-import { detectQuestion } from "@/services/researchAgent";
 import type { Insight } from "@/types";
 
 export function useExaBot() {
@@ -41,7 +40,8 @@ export function useExaBot() {
     const newSegments = transcript.filter(
       (seg) =>
         !processedIds.current.has(seg.id) &&
-        seg.text.trim().length > 15
+        seg.text.trim().length > 15 &&
+        seg.text.trimEnd().endsWith("?")
     );
 
     for (const segment of newSegments) {
@@ -49,8 +49,24 @@ export function useExaBot() {
       processedIds.current.add(segment.id);
 
       (async () => {
-        const query = await detectQuestion(segment.text);
-        if (!query) return;
+        const rawQuestion = segment.text.trim();
+
+        const detectRes = await fetch("/api/research", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: rawQuestion, detectOnly: true }),
+        });
+
+        if (!detectRes.ok) return;
+
+        const detectPayload = (await detectRes.json()) as {
+          shouldResearch: boolean;
+          query: string | null;
+        };
+
+        if (!detectPayload.shouldResearch || !detectPayload.query) return;
+
+        const query = detectPayload.query;
 
         const store = useMeetingStore.getState();
 
@@ -82,7 +98,7 @@ export function useExaBot() {
           const res = await fetch("/api/research", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ query, segmentId: segment.id }),
+            body: JSON.stringify({ query, segmentId: segment.id, numResults: useMeetingStore.getState().researchResultCount }),
           });
 
           if (!res.ok) throw new Error(`Research API ${res.status}`);

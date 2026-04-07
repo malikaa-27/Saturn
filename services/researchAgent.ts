@@ -16,6 +16,23 @@ export interface ResearchResult {
 const QUESTION_STARTERS =
   /^\s*(what|when|where|who|why|how|which|is|are|was|were|do|does|did|can|could|would|should|will|whom|whose)\b/i;
 
+const NON_RESEARCH_PATTERNS = [
+  /^(yes,?\s*)?(can|could|may) i ask you (something|a question|one thing)$/i,
+  /^(can|could) i ask (you )?(something|a question|one thing)$/i,
+  /^(are you there|can you hear me|am i audible|you there)$/i,
+  /^(hi|hello|hey|yo|okay|ok|right|cool|sure)$/i,
+];
+
+const NON_RESEARCH_PHRASES = [
+  "ask you something",
+  "ask you a question",
+  "question for you",
+  "can i ask",
+  "are you there",
+  "can you hear me",
+  "am i audible",
+];
+
 
 /**
  * Detect whether a sentence is a question or research trigger.
@@ -26,15 +43,22 @@ export async function detectQuestion(text: string): Promise<string | null> {
   if (!hasQuestionMark && !QUESTION_STARTERS.test(text)) return null;
 
   const query = text.replace(/[?!]+$/, "").trim();
-  return query.length > 0 ? query : null;
+  if (query.length < 10) return null;
+
+  if (NON_RESEARCH_PATTERNS.some((pattern) => pattern.test(query))) return null;
+
+  const lowered = query.toLowerCase();
+  if (NON_RESEARCH_PHRASES.some((phrase) => lowered.includes(phrase))) return null;
+
+  return query;
 }
 
 /**
  * Run the full research pipeline: fetch Exa results.
  * Summarization is handled server-side in the API route.
  */
-export async function runResearch(query: string): Promise<ResearchResult> {
-  const { results } = await searchExa(query, 5);
+export async function runResearch(query: string, numResults = 5): Promise<ResearchResult> {
+  const { results } = await searchExa(query, numResults);
 
   if (results.length === 0) {
     return {
